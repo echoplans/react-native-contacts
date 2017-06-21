@@ -1,5 +1,7 @@
 package com.rt2zz.reactnativecontacts;
 
+import android.Manifest;
+import android.app.Activity;
 import android.content.ContentProviderOperation;
 import android.content.ContentResolver;
 import android.content.Context;
@@ -10,6 +12,7 @@ import android.provider.ContactsContract.CommonDataKinds;
 import android.provider.ContactsContract.CommonDataKinds.Organization;
 import android.provider.ContactsContract.CommonDataKinds.StructuredName;
 import android.provider.ContactsContract.RawContacts;
+import android.support.v4.app.ActivityCompat;
 
 import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -49,7 +52,7 @@ public class ContactsManager extends ReactContextBaseJavaModule {
     /**
      * Retrieves contacts.
      * Uses raw URI when <code>rawUri</code> is <code>true</code>, makes assets copy otherwise.
-     * @param callback user provided callback to run at completion
+     * @param callback callback
      */
     private void getAllContacts(final Callback callback) {
         AsyncTask.execute(new Runnable() {
@@ -60,33 +63,6 @@ public class ContactsManager extends ReactContextBaseJavaModule {
 
                 ContactsProvider contactsProvider = new ContactsProvider(cr);
                 WritableArray contacts = contactsProvider.getContacts();
-
-                callback.invoke(null, contacts);
-            }
-        });
-    }
-
-    /*
-     * Returns all contacts matching string
-     */
-    @ReactMethod
-    public void getContactsMatchingString(final String searchString, final Callback callback) {
-        getAllContactsMatchingString(searchString, callback);
-    }
-    /**
-     * Retrieves contacts matching String.
-     * Uses raw URI when <code>rawUri</code> is <code>true</code>, makes assets copy otherwise.
-     * @param searchString String to match
-     * @param callback user provided callback to run at completion
-     */
-    private void getAllContactsMatchingString(final String searchString, final Callback callback) {
-        AsyncTask.execute(new Runnable() {
-            @Override
-            public void run() {
-                Context context = getReactApplicationContext();
-                ContentResolver cr = context.getContentResolver();
-                ContactsProvider contactsProvider = new ContactsProvider(cr);
-                WritableArray contacts = contactsProvider.getContactsMatchingString(searchString);
 
                 callback.invoke(null, contacts);
             }
@@ -344,10 +320,15 @@ public class ContactsManager extends ReactContextBaseJavaModule {
      * Check if READ_CONTACTS permission is granted
      */
     private String isPermissionGranted() {
-        String permission = "android.permission.READ_CONTACTS";
-        // return -1 for denied and 1
-        int res = getReactApplicationContext().checkCallingOrSelfPermission(permission);
-        return (res == PackageManager.PERMISSION_GRANTED) ? "authorized" : "denied";
+        Activity activity = getCurrentActivity();
+        int contactPermission = ActivityCompat.checkSelfPermission(activity, Manifest.permission.READ_CONTACTS);
+        if (contactPermission != PackageManager.PERMISSION_GRANTED) {
+            String[] PERMISSIONS = { Manifest.permission.READ_CONTACTS };
+            final int REACT_NATIVE_CONTACTS_PERMISSION = 2;
+            ActivityCompat.requestPermissions(activity, PERMISSIONS, REACT_NATIVE_CONTACTS_PERMISSION);
+            return "requested";
+        }
+        return "authorized";
     }
 
     /*
